@@ -1,0 +1,18 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Documents query plugin",
+  "name_for_model": "DocumentsQueryPlugin",
+  "description_for_human": "Answer a question from the user",
+  "description_for_model": "Answer a question from the user",
+  "auth": {
+    "type": "user_http",
+    "authorization_type": "bearer"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "{url}/api/swagger.json"
+  },
+  "logo_url": "{url}/logo.png",
+  "contact_email": "soporte@bancard.cl",
+  "legal_info_url": "https://bancard.py"
+}

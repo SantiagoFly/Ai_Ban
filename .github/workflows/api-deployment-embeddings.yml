@@ -1,0 +1,58 @@
+name: Deploy Embeddings Service
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+     - main
+    paths:
+     - 'Backend/Backend.Embedding.Services/**'
+     - 'Backend/Backend.Common/**'
+     - 'Backend/Backend.DataAccess/**'
+     - 'Backend/Backend.Embedding.Services/**'
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3     
+     
+      - name: Log in to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get DateTime as tag for the container
+        id: get_datetime
+        run: |
+          current_timestamp=$(date +%s)
+          formatted_datetime=$(date -u -d "@${current_timestamp}" +"%Y%m%d%H%M%S")
+          echo "::set-output name=formatted_datetime::$formatted_datetime"
+
+      - name: Build the container App and push it to the ACR 
+        uses: azure/container-apps-deploy-action@v1 
+        with: 
+          appSourcePath: ${{ github.workspace }}/Backend
+          dockerfilePath: Backend.Embedding.Services/Dockerfile
+          acrName: bcacreastus
+          containerAppName: bc-ca-embd-poc-ai-eastus-test
+          resourceGroup: bc-rg-poc-ai-test
+          imageToBuild: bcacreastus.azurecr.io/poc-ai-embeddings:latest
+
+     
+      - name: Deploy the container app 
+        uses: azure/cli@v2
+        with: 
+          cliversion: 2.30.0
+          inlineScript: |
+            az containerapp update \
+              --name bc-ca-embd-poc-ai-eastus-test \
+              --resource-group bc-rg-poc-ai-test \
+              --image bcacreastus.azurecr.io/poc-ai-embeddings:latest \
+              --cpu 1.0 \
+              --memory 2.0Gi \
+              --min-replicas 1 \
+              --max-replicas 1 \
+              --revision-suffix ${{ steps.get_datetime.outputs.formatted_datetime }} \
+              --set-env-vars "FUNCTIONS_WORKER_RUNTIME=dotnet-isolated" "AppConfiguration=${{ secrets.APP_CONTIGURATION }}" "AzureWebJobsStorage=${{ secrets.STORAGE_CONNECTION_STRING }}" "StorageConnectionString=${{ secrets.STORAGE_CONNECTION_STRING }}" "AzureWebJobsSecretStorageKeyVaultUri=${{ secrets.KEY_VAULT_URI }}" "APPINSIGHTS_INSTRUMENTATIONKEY=${{ secrets.API_APPINSIGHTS_INSTRUMENTATIONKEY }}" "AzureWebJobsSecretStorageType=keyvault"
